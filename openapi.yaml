@@ -1,0 +1,477 @@
+openapi: 3.0.3
+info:
+  title: Task Manager API
+  version: 1.0.0
+  description: |
+    REST API for Task Management (Boards, Tasks, Statuses).
+    Implemented with Node/Express and Prisma/Postgres. Endpoints are mounted under /api.
+servers:
+  - url: http://localhost:4000
+    description: Local development server
+
+tags:
+  - name: Boards
+    description: Board management
+  - name: Tasks
+    description: Task management
+  - name: Statuses
+    description: Runtime-manageable status labels
+
+paths:
+  /api/boards:
+    get:
+      tags: [Boards]
+      summary: List all boards with their tasks
+      responses:
+        "200":
+          description: Array of boards with tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BoardWithTasks'
+    post:
+      tags: [Boards]
+      summary: Create a board
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardCreate'
+      responses:
+        "201":
+          description: Created board
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+        "400":
+          description: Validation error (missing or duplicate name)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/boards/{id}:
+    put:
+      tags: [Boards]
+      summary: Update a board's name
+      parameters:
+        - $ref: '#/components/parameters/boardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardCreate'
+      responses:
+        "200":
+          description: Updated board
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Board'
+        "400":
+          description: Invalid id or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Board not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Boards]
+      summary: Delete a board and its tasks
+      parameters:
+        - $ref: '#/components/parameters/boardId'
+      responses:
+        "200":
+          description: Deletion success message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        "404":
+          description: Board not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/tasks:
+    post:
+      tags: [Tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        "201":
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskWithRelations'
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Board or named status not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/tasks/{id}:
+    put:
+      tags: [Tasks]
+      summary: Update a task
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskWithRelations'
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Task or referenced resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Tasks]
+      summary: Delete a task
+      parameters:
+        - $ref: '#/components/parameters/taskId'
+      responses:
+        "200":
+          description: Deletion success message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/statuses:
+    get:
+      tags: [Statuses]
+      summary: List all statuses
+      responses:
+        "200":
+          description: Array of statuses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Status'
+    post:
+      tags: [Statuses]
+      summary: Create a status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusCreate'
+      responses:
+        "201":
+          description: Created status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        "400":
+          description: Validation or duplicate name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/statuses/{id}:
+    put:
+      tags: [Statuses]
+      summary: Rename a status
+      parameters:
+        - $ref: '#/components/parameters/statusId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusCreate'
+      responses:
+        "200":
+          description: Updated status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        "400":
+          description: Validation or duplicate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Status not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Statuses]
+      summary: Delete a status (unlinks tasks first)
+      parameters:
+        - $ref: '#/components/parameters/statusId'
+      responses:
+        "200":
+          description: Deletion success message
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        "404":
+          description: Status not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  parameters:
+    boardId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Numeric ID of the board
+    taskId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Numeric ID of the task
+    statusId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Numeric ID of the status
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      example:
+        error: "Board not found"
+
+    Message:
+      type: object
+      properties:
+        message:
+          type: string
+      example:
+        message: "Deleted successfully"
+
+    Board:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name]
+
+    BoardCreate:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name
+      example:
+        name: "Project A"
+
+    Status:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name]
+
+    StatusCreate:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name
+      example:
+        name: "Review"
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        boardId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        statusId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, boardId, title]
+
+    TaskWithRelations:
+      allOf:
+        - $ref: '#/components/schemas/Task'
+        - type: object
+          properties:
+            board:
+              $ref: '#/components/schemas/Board'
+            status:
+              $ref: '#/components/schemas/Status'
+            description:
+              type: string
+              nullable: true
+      example:
+        id: 1
+        boardId: 1
+        title: "Design UI"
+        description: "Create wireframes"
+        statusId: 1
+        status:
+          id: 1
+          name: "TODO"
+        board:
+          id: 1
+          name: "Project A"
+        createdAt: "2025-11-05T09:00:00.000Z"
+        updatedAt: "2025-11-05T09:00:00.000Z"
+
+    BoardWithTasks:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskWithRelations'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, tasks]
+
+    TaskCreate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        boardId:
+          type: integer
+        statusId:
+          type: integer
+          nullable: true
+        statusName:
+          type: string
+          nullable: true
+      required:
+        - title
+        - boardId
+      example:
+        title: "Implement endpoint"
+        description: "Add validation"
+        boardId: 1
+        statusName: "IN_PROGRESS"
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        boardId:
+          type: integer
+        statusId:
+          type: integer
+          nullable: true
+        statusName:
+          type: string
+          nullable: true
+      example:
+        title: "Implement endpoint"
+        statusName: "DONE"
+
+security: []

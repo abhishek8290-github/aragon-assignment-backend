@@ -15,13 +15,16 @@ const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 
+const Sentry = require('@sentry/node');
+const logger = require('./utils/logger');
+
 const app = express();
 
 /**
  * Basic logging (morgan) and a small winston-like console wrapper.
  * For production, replace console with a structured logger (winston/bunyan).
  */
-app.use(morgan('combined'));
+app.use(morgan('combined', { stream: logger.stream }));
 
 // Security middlewares
 app.use(helmet());
@@ -65,14 +68,20 @@ if (process.env.USE_CSRF === 'true') {
   app.use('/api', csrfProtection);
 }
 
-// Simple logging middleware - logs method and path for each request (keeps previous behavior)
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  next();
-});
+ // Simple logging middleware - logs method and path (uses winston)
+ app.use((req, res, next) => {
+   logger.info(`${req.method} ${req.path}`);
+   next();
+ });
 
 const swaggerDocument = YAML.load('./openapi.yaml');
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+// Initialize Sentry if configured and attach request handler
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN });
+  app.use(Sentry.Handlers.requestHandler());
+}
 
 // Mount API routes
 app.use('/api', router);
@@ -82,10 +91,22 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
+// Sentry error handler (captures errors) - only if SENTRY_DSN is present
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.errorHandler());
+}
+
 // Error handling middleware
 app.use((err, req, res, next) => {
-  // Don't leak stack traces in production
-  console.error(err);
+  // Log the error
+  logger.error(err);
+  if (process.env.SENTRY_DSN) {
+    try {
+      Sentry.captureException(err);
+    } catch (e) {
+      logger.error('Sentry capture failed', e);
+    }
+  }
   const status = err.status || 500;
   const message = (process.env.NODE_ENV === 'production') ? (err.message || 'Internal Server Error') : err.message || 'Internal Server Error';
   res.status(status).json({ error: message });
