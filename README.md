@@ -118,24 +118,6 @@ Security & Hardening applied
 - compression — gzip/deflate responses
 - Parsers limited to small bodies: express.json({ limit: '10kb' })
 
-Recommendations / Next steps
-- Add OpenAPI spec (openapi.yaml) and a Postman collection (I can generate these).
-- Add Joi/Zod request validation schemas for each route.
-- Add authentication (JWT) and RBAC if this will be multi-user.
-- Replace deprecated packages (xss-clean, csurf versions) if needed and keep dependencies up-to-date.
-- Add unit/integration tests (supertest) and CI pipeline.
-- Replace console + morgan with winston and integrate Sentry/monitoring in production.
-- Add .dockerignore and optionally a multi-stage Dockerfile for smaller production images.
-
-Troubleshooting — docker-compose port 5432 already allocated
-If you see: "Bind for 0.0.0.0:5432 failed: port is already allocated":
-- Option A — stop local Postgres: sudo service postgresql stop (or appropriate command for your OS)
-- Option B — change host port mapping in docker-compose.yml (example):
-  ports:
-    - "5433:5432"
-  Then update DATABASE_URL to use port 5433 when connecting from host.
-- Option C — remove `ports` mapping for db so it is not exposed on host (the app container can still talk to it via Docker network).
-
 Repository layout (top-level)
 - server.js
 - package.json
@@ -154,9 +136,4 @@ Repository layout (top-level)
 - docker-compose.yml
 - README.md
 
-If you want, I can:
-- Add a complete OpenAPI spec file (openapi.yaml) and produce a Postman collection next.
-- Add .dockerignore and a multi-stage Dockerfile.
-- Add Joi validation and wire middleware into routes.
 
-Which of those would you like me to do next? (I can add openapi.yaml + Postman collection now if you want documentation right away.)
